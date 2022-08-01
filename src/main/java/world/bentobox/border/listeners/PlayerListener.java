@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
@@ -77,40 +78,42 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerTeleport(PlayerTeleportEvent e) {
-			Player player = e.getPlayer();
-			Location to = e.getTo();
+        Player player = e.getPlayer();
+        Location to = e.getTo();
 
-			show.clearUser(User.getInstance(player));
+        show.clearUser(User.getInstance(player));
 
-			if (!addon.inGameWorld(to.getWorld())) {
-				return;
-			}
+        if (!addon.inGameWorld(to.getWorld())) {
+            return;
+        }
 
-			TeleportCause cause = e.getCause();
-			boolean isBlacklistedCause = cause == TeleportCause.ENDER_PEARL || cause == TeleportCause.CHORUS_FRUIT;
+        TeleportCause cause = e.getCause();
+        boolean isBlacklistedCause = cause == TeleportCause.ENDER_PEARL || cause == TeleportCause.CHORUS_FRUIT;
 
-			addon.getIslands().getIslandAt(to).ifPresentOrElse(i -> {
-				Optional<Flag> boxedEnderPearlFlag = i.getPlugin().getFlagsManager().getFlag("ALLOW_MOVE_BOX");
+        Bukkit.getScheduler().runTask(addon.getPlugin(), () ->
+            addon.getIslands().getIslandAt(to).ifPresentOrElse(i -> {
+                Optional<Flag> boxedEnderPearlFlag = i.getPlugin().getFlagsManager().getFlag("ALLOW_MOVE_BOX");
 
-				if (isBlacklistedCause
-					&& (!i.getProtectionBoundingBox().contains(to.toVector())
-						|| !i.onIsland(player.getLocation()))) {
-					e.setCancelled(true);
-				}
+                if (isBlacklistedCause
+                && (!i.getProtectionBoundingBox().contains(to.toVector())
+                || !i.onIsland(player.getLocation()))) {
+                    e.setCancelled(true);
+                }
 
-				if (boxedEnderPearlFlag.isPresent()
-					&& boxedEnderPearlFlag.get().isSetForWorld(to.getWorld())
-					&& cause == TeleportCause.ENDER_PEARL) {
-					e.setCancelled(false);
-				}
+                if (boxedEnderPearlFlag.isPresent()
+                && boxedEnderPearlFlag.get().isSetForWorld(to.getWorld())
+                && cause == TeleportCause.ENDER_PEARL) {
+                    e.setCancelled(false);
+                }
 
-				show.showBorder(player, i);
-			}, () -> {
-				if (isBlacklistedCause) {
-					e.setCancelled(true);
-					return;
-				}
-			});
+                show.showBorder(player, i);
+            }, () -> {
+                if (isBlacklistedCause) {
+                    e.setCancelled(true);
+                    return;
+                }
+            })
+        );
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -166,7 +169,8 @@ public class PlayerListener implements Listener {
         if ((from.getWorld() != null && from.getWorld().equals(to.getWorld())
                 && from.toVector().multiply(XZ).equals(to.toVector().multiply(XZ)))
                 || !addon.inGameWorld(player.getWorld())
-                || !addon.getIslands().getIslandAt(to).filter(i -> addon.getIslands().locationIsOnIsland(player, i.getProtectionCenter())).isPresent()
+                || user.getPlayer().getGameMode() == GameMode.SPECTATOR
+                // || !addon.getIslands().getIslandAt(to).filter(i -> addon.getIslands().locationIsOnIsland(player, i.getProtectionCenter())).isPresent()
                 || !user.getMetaData(BorderShower.BORDER_STATE_META_DATA).map(MetaDataValue::asBoolean).orElse(addon.getSettings().isShowByDefault())) {
             return false;
         }
